@@ -25,6 +25,9 @@ describe('webRequest module', () => {
       if (req.headers.accept === '*/*;test/header') {
         content += 'header/received'
       }
+      if (req.headers.origin === 'http://new-origin') {
+        content += 'new/origin'
+      }
       res.end(content)
     }
   })
@@ -183,6 +186,22 @@ describe('webRequest module', () => {
       })
     })
 
+    it('can change CORS headers', (done) => {
+      ses.webRequest.onBeforeSendHeaders((details, callback) => {
+        const requestHeaders = details.requestHeaders
+        requestHeaders.Origin = 'http://new-origin'
+        callback({ requestHeaders: requestHeaders })
+      })
+      $.ajax({
+        url: defaultURL,
+        success: (data) => {
+          expect(data).to.equal('/new/origin')
+          done()
+        },
+        error: (xhr, errorType) => done(errorType)
+      })
+    })
+
     it('resets the whole headers', (done) => {
       const requestHeaders = {
         Test: 'header'
@@ -254,6 +273,22 @@ describe('webRequest module', () => {
         success: (data, status, xhr) => {
           expect(xhr.getResponseHeader('Custom')).to.equal('Changed')
           expect(data).to.equal('/')
+          done()
+        },
+        error: (xhr, errorType) => done(errorType)
+      })
+    })
+
+    it('can change CORS headers', (done) => {
+      ses.webRequest.onHeadersReceived((details, callback) => {
+        const responseHeaders = details.responseHeaders!
+        responseHeaders['access-control-allow-origin'] = ['http://new-origin'] as any
+        callback({ responseHeaders: responseHeaders })
+      })
+      $.ajax({
+        url: defaultURL,
+        success: (data, status, xhr) => {
+          expect(xhr.getResponseHeader('access-control-allow-origin')).to.equal('http://new-origin')
           done()
         },
         error: (xhr, errorType) => done(errorType)
